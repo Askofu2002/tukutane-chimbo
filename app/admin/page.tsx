@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 
-type Payment={member_name:string;phone:string|null;amount_tzs:number;merchant_reference:string;provider_reference:string|null;status:string;created_at:string};
+type Payment={member_name:string;phone:string|null;payment_channel:string|null;amount_tzs:number;merchant_reference:string;provider_reference:string|null;status:string;created_at:string};
 type Report={report_id:string;reporter_name:string;reported_name:string;reason:string;details:string|null;status:string;created_at:string};
 
 export default function AdminPage(){
@@ -31,7 +31,7 @@ export default function AdminPage(){
  return <main className="shell"><header className="topbar"><Link className="brand" href="/"><span className="brand-mark">T</span><span>Tukutane <b>Chimbo</b></span></Link><Link href="/" className="button button-quiet">Back</Link></header>
  <section className="panel" style={{marginTop:24}}><span className="eyebrow">RESTRICTED · ADMIN</span><h2>Administration</h2>{notice&&<p className="notice">{notice}</p>}
  {summary&&<><div className="admin-stats"><div><small>Members</small><b>{summary.members}</b></div><div><small>Completed profiles</small><b>{summary.completed_profiles}</b></div><div><small>Active memberships</small><b>{summary.active_memberships}</b></div><div><small>Verified revenue</small><b>{money(summary.successful_revenue_tzs)}</b></div><div><small>Pending payments</small><b>{summary.pending_payments}</b></div><div><small>Open reports</small><b>{summary.open_reports}</b></div></div>
- <h3>Payment transactions</h3><div className="table-scroll"><table><thead><tr><th>Member</th><th>Phone</th><th>Amount</th><th>Reference</th><th>Status</th></tr></thead><tbody>{payments.map((p,i)=><tr key={p.merchant_reference+i}><td>{p.member_name}</td><td>{p.phone||"—"}</td><td>{money(p.amount_tzs)}</td><td>{p.merchant_reference}</td><td>{p.status}</td></tr>)}</tbody></table></div>
+ <h3>Payment transactions</h3><div className="table-scroll"><table><thead><tr><th>Member</th><th>Phone</th><th>Channel</th><th>Amount</th><th>Reference</th><th>Status</th></tr></thead><tbody>{payments.map((p,i)=><tr key={p.merchant_reference+i}><td>{p.member_name}</td><td>{p.phone||"—"}</td><td>{p.payment_channel||"—"}</td><td>{money(p.amount_tzs)}</td><td>{p.merchant_reference}</td><td>{p.status}</td></tr>)}</tbody></table></div>
  <h3>Member reports</h3>{reports.length?reports.map(r=><article className="report-card" key={r.report_id}><b>{r.reported_name}</b><span>Reported by {r.reporter_name} · {r.reason}</span><p>{r.details||"No extra details"}</p><div className="chat-actions"><span>{r.status}</span><button className="button button-quiet" disabled={busy} onClick={()=>updateReport(r.report_id,"reviewing")}>Review</button><button className="button button-quiet" disabled={busy} onClick={()=>updateReport(r.report_id,"resolved")}>Resolve</button><button className="button button-quiet" disabled={busy} onClick={()=>updateReport(r.report_id,"dismissed")}>Dismiss</button></div></article>):<p className="muted">No reports found.</p>}
  <p className="muted">Withdrawals are not enabled until AzamPay disbursement credentials and verified settlement details are configured. This dashboard only counts transactions marked successful by a trusted server.</p></>}
  </section></main>;
