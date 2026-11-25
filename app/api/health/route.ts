@@ -14,15 +14,17 @@ export async function GET() {
     const headers = { apikey: key, Authorization: "Bearer " + key };
     const [auth, rest] = await Promise.all([
       fetch(base + "/auth/v1/health", { headers, cache: "no-store" }),
-      fetch(base + "/rest/v1/", { headers, cache: "no-store" })
+      fetch(base + "/rest/v1/profiles?select=id&limit=0", { headers, cache: "no-store" })
     ]);
-    const ok = auth.ok && rest.ok;
+    const restBody = await rest.clone().text();
+    const restReachable = rest.ok || (rest.status === 401 && restBody.includes("permission denied for table profiles"));
+    const ok = auth.ok && restReachable;
     return NextResponse.json({
       app: "Tukutane Chimbo",
       status: ok ? "ok" : "degraded",
       supabase: {
         auth: auth.ok ? "reachable" : "unavailable",
-        database_api: rest.ok ? "reachable" : "unavailable"
+        database_api: rest.ok ? "reachable" : restReachable ? "reachable_auth_required" : "unavailable"
       }
     }, { status: ok ? 200 : 503 });
   } catch {
