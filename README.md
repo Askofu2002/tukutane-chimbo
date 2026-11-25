@@ -33,6 +33,14 @@ npm run dev
 
 Open http://localhost:3000.
 
+## New feature migration and screens
+
+- Added secure `start_conversation` and `list_my_conversations` RPCs, realtime chat UI, block/report UI, admin summary and moderation RPCs.
+- Added `supabase/migrations/202611260001_app_features.sql`. **Run this migration in Supabase SQL Editor before using messaging or admin tools.**
+- `/membership` displays the TZS 1,000 / 30-day plan and current membership. AzamPay checkout remains disabled until merchant sandbox credentials and the exact account-specific callback configuration are provided.
+- `/api/health` now probes the Supabase Auth and REST API endpoints (not just environment variable presence).
+- Android packaging uses Capacitor to open the hosted Vercel site. It is an online WebView wrapper, not an offline native rewrite.
+
 ## Important implementation status
 
 This is a committed application foundation, not a production-complete service. The following still need to be implemented and tested:
@@ -45,6 +53,10 @@ This is a committed application foundation, not a production-complete service. T
 - Hosting, domain configuration, Android packaging, signing, and APK release.
 
 The app does not simulate payment success. A membership must only activate after a trusted server verifies the transaction with AzamPay. Do not add merchant secrets to frontend code or GitHub.
+
+## Android APK
+
+The GitHub Actions workflow `.github/workflows/android-apk.yml` builds a debug APK when the app files change or when manually run from Actions. Download the `tukutane-chimbo-debug-apk` artifact from the completed workflow. This debug APK is for installation/testing; Play Store release signing requires a separately managed release keystore.
 
 ## Deployment
 
