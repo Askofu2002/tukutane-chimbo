@@ -87,12 +87,12 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $profile$
   select p.id,p.display_name,p.phone,p.gender,p.region,p.bio,p.language,
          p.registration_complete,p.created_at,p.updated_at
   from public.profiles p
   where p.id=auth.uid();
-$;
+$profile$;
 
 create or replace function public.admin_dashboard_summary()
 returns jsonb
