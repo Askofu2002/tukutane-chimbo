@@ -74,8 +74,9 @@ export default function Home() {
     if (!supabase || !user) { setProfile(null); setMembers([]); return; }
     let alive = true;
     async function load() {
-      const { data } = await supabase!.from("profiles").select("*").eq("id", user!.id).maybeSingle();
-      if (alive) { const current = data as Profile | null; setProfile(current); if (current) { setName(current.display_name || ""); setPhone(current.phone || ""); setGender(current.gender || "female"); setRegion(current.region || "Dar es Salaam"); setBio(current.bio || ""); } }
+      const { data } = await supabase!.rpc("get_my_profile");
+      const ownProfile = (Array.isArray(data) ? data[0] : data) as Profile | null;
+      if (alive) { const current = ownProfile; setProfile(current); if (current) { setName(current.display_name || ""); setPhone(current.phone || ""); setGender(current.gender || "female"); setRegion(current.region || "Dar es Salaam"); setBio(current.bio || ""); } }
       const { data: people } = await supabase!.from("profiles").select("id,display_name,gender,region,bio,registration_complete").eq("registration_complete", true).neq("id", user!.id).limit(40);
       if (alive && people) setMembers(people as Profile[]);
     }
@@ -130,8 +131,9 @@ export default function Home() {
           if (rowError) throw rowError;
         }
       }
-      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-      setProfile(data as Profile); setMessage(t.saved);
+      const { data: ownProfile } = await supabase.rpc("get_my_profile");
+      const refreshed = (Array.isArray(ownProfile) ? ownProfile[0] : ownProfile) as Profile | null;
+      setProfile(refreshed); setMessage(t.saved);
     } catch (e) { setMessage(e instanceof Error ? e.message : t.authError); }
     finally { setBusy(false); }
   }
