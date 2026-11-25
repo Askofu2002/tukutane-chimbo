@@ -255,3 +255,17 @@ grant select,insert,delete on public.user_blocks to authenticated;
 grant select,insert on public.user_reports to authenticated;
 grant select on public.memberships to authenticated;
 grant select on public.payment_transactions to authenticated;
+
+
+-- Enable realtime delivery for chat messages (idempotent).
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname='supabase_realtime')
+     and not exists (
+       select 1 from pg_publication_tables
+       where pubname='supabase_realtime' and schemaname='public' and tablename='messages'
+     ) then
+    alter publication supabase_realtime add table public.messages;
+  end if;
+end
+$$;
