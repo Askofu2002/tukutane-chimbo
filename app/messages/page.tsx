@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
@@ -73,7 +74,7 @@ export default function MessagesPage() {
 
   useEffect(()=>{bottom.current?.scrollIntoView({behavior:"smooth"});},[messages]);
 
-  async function sendMessage(e:React.FormEvent){
+  async function sendMessage(e:FormEvent){
     e.preventDefault(); if(!supabase||!active||!body.trim()||busy)return;
     setBusy(true);
     const {error}=await supabase.from("messages").insert({conversation_id:active.conversation_id,sender_id:userId,body:body.trim()});
