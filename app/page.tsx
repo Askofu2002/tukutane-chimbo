@@ -48,6 +48,8 @@ export default function Home() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [members, setMembers] = useState<Profile[]>([]);
   const [mode, setMode] = useState<"login" | "signup">("signup");
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -67,7 +69,10 @@ export default function Home() {
   useEffect(() => {
     if (!supabase) return;
     supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (event === "PASSWORD_RECOVERY") setRecoveryMode(true);
+    });
     return () => listener.subscription.unsubscribe();
   }, [supabase]);
 
@@ -107,13 +112,38 @@ export default function Home() {
     finally { setBusy(false); }
   }
 
+  async function requestPasswordReset() {
+    if (!supabase || !email.trim()) { setMessage("Enter your account email first."); return; }
+    setBusy(true); setMessage("");
+    try {
+      const redirectTo = window.location.origin + "/?reset=1";
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+      if (error) throw error;
+      setMessage("Password reset email sent. Open the link in your email to choose a new password.");
+    } catch (e) { setMessage(e instanceof Error ? e.message : t.authError); }
+    finally { setBusy(false); }
+  }
+
+  async function updateRecoveredPassword() {
+    if (!supabase || newPassword.length < 8) return;
+    setBusy(true); setMessage("");
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setRecoveryMode(false); setNewPassword("");
+      setMessage("Password updated successfully. You are now signed in.");
+    } catch (e) { setMessage(e instanceof Error ? e.message : t.authError); }
+    finally { setBusy(false); }
+  }
+
   async function saveProfile() {
     if (!supabase || !user) return;
     setBusy(true); setMessage("");
     try {
       const { count: existingPhotoCount, error: photoCountError } = await supabase.from("profile_photos").select("id", { count: "exact", head: true }).eq("user_id", user.id);
       if (photoCountError) throw photoCountError;
-      if (gender === "female" && ((existingPhotoCount || 0) > 3 || photos.length !== Math.max(0, 3 - (existingPhotoCount || 0)))) throw new Error(t.needPhotos + " You have " + (existingPhotoCount || 0) + " already; upload " + Math.max(0, 3 - (existingPhotoCount || 0)) + " more.");
+      if (gender === "female" && (existingPhotoCount || 0) > 3) throw new Error("Your account has more than 3 profile photos. Contact support to correct them.");
+      if (gender === "female" && photos.length > 0 && photos.length !== Math.max(0, 3 - (existingPhotoCount || 0))) throw new Error("Upload exactly the remaining " + Math.max(0, 3 - (existingPhotoCount || 0)) + " photos.");
       const { error: updateError } = await supabase.from("profiles").update({
         display_name: name.trim() || profile?.display_name || user.user_metadata?.display_name || "",
         phone: phone.trim() || profile?.phone || user.user_metadata?.phone || null,
@@ -121,7 +151,6 @@ export default function Home() {
       }).eq("id", user.id);
       if (updateError) throw updateError;
       if (photos.length) {
-        if (photos.length !== Math.max(0, 3 - (existingPhotoCount || 0))) throw new Error("Upload the remaining " + Math.max(0, 3 - (existingPhotoCount || 0)) + " photos to complete your profile.");
         for (let i = 0; i < photos.length; i++) {
           const file = photos[i];
           if (!["image/jpeg","image/png","image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
@@ -169,7 +198,7 @@ export default function Home() {
     </section>
     {!configured && <div className="notice error">{t.setup}</div>}
     {message && <div className="notice">{message}</div>}
-    {!user ? <section className="panel auth-panel">
+    {recoveryMode ? <section className="panel auth-panel"><div className="section-heading"><div><span className="eyebrow">ACCOUNT SECURITY</span><h2>Set a new password</h2></div></div><label className="wide">New password<input type="password" autoComplete="new-password" minLength={8} value={newPassword} onChange={e => setNewPassword(e.target.value)} /></label><button className="button button-primary full" disabled={busy || newPassword.length < 8} onClick={updateRecoveredPassword}>{busy ? t.loading : "Update password"}</button></section> : !user ? <section className="panel auth-panel">
       <div className="section-heading"><div><span className="eyebrow">KARIBU / WELCOME</span><h2>{mode === "signup" ? t.signup : t.login}</h2></div></div>
       <div className="tabs"><button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")}>{t.signup}</button><button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>{t.login}</button></div>
       <div className="form-grid">
@@ -184,6 +213,7 @@ export default function Home() {
         <label className="wide">{t.password}<input type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={8} value={password} onChange={e => setPassword(e.target.value)} required /></label>
       </div>
       <button className="button button-primary full" disabled={busy || !configured || !email || password.length < 8 || (mode === "signup" && !name.trim())} onClick={authenticate}>{busy ? t.loading : mode === "signup" ? t.signup : t.login}</button>
+      {mode === "login" && <button type="button" className="button button-quiet full" disabled={busy || !email.trim()} onClick={requestPasswordReset}>Forgot password? Send reset email</button>}
       <p className="muted">{t.pending}</p>
     </section> : <div className="content-grid">
       <section className="panel profile-panel">
