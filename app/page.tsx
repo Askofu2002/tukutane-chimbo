@@ -56,6 +56,7 @@ export default function Home() {
   const [region, setRegion] = useState("Dar es Salaam");
   const [bio, setBio] = useState("");
   const [photos, setPhotos] = useState<File[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const supabase = useMemo(() => {
@@ -77,6 +78,8 @@ export default function Home() {
       const { data } = await supabase!.rpc("get_my_profile");
       const ownProfile = (Array.isArray(data) ? data[0] : data) as Profile | null;
       if (alive) { const current = ownProfile; setProfile(current); if (current) { setName(current.display_name || ""); setPhone(current.phone || ""); setGender(current.gender || "female"); setRegion(current.region || "Dar es Salaam"); setBio(current.bio || ""); } }
+      const { count: photoCount } = await supabase!.from("profile_photos").select("id", { count: "exact", head: true }).eq("user_id", user!.id);
+      if (alive) setExistingPhotos(photoCount || 0);
       const { data: people } = await supabase!.from("profiles").select("id,display_name,gender,region,bio,registration_complete").eq("registration_complete", true).neq("id", user!.id).limit(40);
       if (alive && people) setMembers(people as Profile[]);
     }
@@ -110,7 +113,7 @@ export default function Home() {
     try {
       const { count: existingPhotoCount, error: photoCountError } = await supabase.from("profile_photos").select("id", { count: "exact", head: true }).eq("user_id", user.id);
       if (photoCountError) throw photoCountError;
-      if (gender === "female" && ((photos.length !== 0 && photos.length !== 3) || (existingPhotoCount !== 3 && photos.length !== 3) || (existingPhotoCount === 3 && photos.length === 3))) throw new Error(t.needPhotos + " Existing photos: " + (existingPhotoCount || 0) + ".");
+      if (gender === "female" && (existingPhotoCount > 3 || photos.length !== Math.max(0, 3 - (existingPhotoCount || 0)))) throw new Error(t.needPhotos + " You have " + (existingPhotoCount || 0) + " already; upload " + Math.max(0, 3 - (existingPhotoCount || 0)) + " more.");
       const { error: updateError } = await supabase.from("profiles").update({
         display_name: name.trim() || profile.display_name,
         phone: phone.trim() || profile.phone,
@@ -118,7 +121,7 @@ export default function Home() {
       }).eq("id", user.id);
       if (updateError) throw updateError;
       if (photos.length) {
-        if (photos.length !== 3 || (existingPhotoCount || 0) > 0) throw new Error("Upload exactly 3 photos once. Existing photos cannot be replaced from this screen yet.");
+        if (photos.length !== Math.max(0, 3 - (existingPhotoCount || 0))) throw new Error("Upload the remaining " + Math.max(0, 3 - (existingPhotoCount || 0)) + " photos to complete your profile.");
         for (let i = 0; i < photos.length; i++) {
           const file = photos[i];
           if (!["image/jpeg","image/png","image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
@@ -127,13 +130,13 @@ export default function Home() {
           const path = user.id + "/" + crypto.randomUUID() + "-" + file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
           const { error: uploadError } = await supabase.storage.from("profile-photos").upload(path, file, { upsert: false });
           if (uploadError) throw uploadError;
-          const { error: rowError } = await supabase.from("profile_photos").insert({ user_id: user.id, storage_path: path, position: i + 1 });
+          const { error: rowError } = await supabase.from("profile_photos").insert({ user_id: user.id, storage_path: path, position: (existingPhotoCount || 0) + i + 1 });
           if (rowError) throw rowError;
         }
       }
       const { data: ownProfile } = await supabase.rpc("get_my_profile");
       const refreshed = (Array.isArray(ownProfile) ? ownProfile[0] : ownProfile) as Profile | null;
-      setProfile(refreshed); setMessage(t.saved);
+      setProfile(refreshed); setExistingPhotos((existingPhotoCount || 0) + photos.length); setPhotos([]); setMessage(t.saved);
     } catch (e) { setMessage(e instanceof Error ? e.message : t.authError); }
     finally { setBusy(false); }
   }
@@ -183,7 +186,7 @@ export default function Home() {
           <label>{t.gender}<select value={gender} onChange={e => setGender(e.target.value)}><option value="female">{t.female}</option><option value="male">{t.male}</option><option value="other">{t.other}</option></select></label>
           <label>{t.region}<select value={region} onChange={e => setRegion(e.target.value)}>{regions.map(r => <option key={r}>{r}</option>)}</select></label>
           <label className="wide">{t.bio}<textarea value={bio || profile?.bio || ""} onChange={e => setBio(e.target.value)} rows={3} maxLength={500} /></label>
-          {gender === "female" && <label className="wide">{t.photos}<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e => setPhotos(Array.from(e.target.files || []).slice(0,3))} /><small>{photos.length}/3 selected · Max 5 MB each</small></label>}
+          {gender === "female" && <label className="wide">{t.photos}<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e => setPhotos(Array.from(e.target.files || []).slice(0,Math.max(0,3-existingPhotos)))} /><small>{existingPhotos}/3 uploaded · {photos.length} selected · Max 5 MB each</small></label>}
         </div>
         <button className="button button-primary full" disabled={busy} onClick={saveProfile}>{busy ? t.loading : t.finish}</button>
       </section>
