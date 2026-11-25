@@ -41,7 +41,7 @@ begin
     bio=excluded.bio,
     language=excluded.language,
     updated_at=now()
-  returning to_jsonb(profiles.*) into saved_profile;
+  returning to_jsonb(profiles) into saved_profile;
 
   return saved_profile;
 end;
