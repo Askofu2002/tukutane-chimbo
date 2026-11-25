@@ -118,7 +118,8 @@ $$;
 
 alter table public.payment_transactions add column if not exists payment_channel text;
 
-create or replace function public.admin_recent_payments()
+drop function if exists public.admin_recent_payments();
+create function public.admin_recent_payments()
 returns table (
   member_name text, phone text, payment_channel text, amount_tzs integer, merchant_reference text,
   provider_reference text, status text, created_at timestamptz
