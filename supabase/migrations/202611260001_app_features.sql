@@ -77,6 +77,23 @@ as $$
   order by coalesce(latest.created_at,c.created_at) desc;
 $$;
 
+
+create or replace function public.get_my_profile()
+returns table (
+  id uuid, display_name text, phone text, gender text, region text, bio text,
+  language text, registration_complete boolean, created_at timestamptz, updated_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select p.id,p.display_name,p.phone,p.gender,p.region,p.bio,p.language,
+         p.registration_complete,p.created_at,p.updated_at
+  from public.profiles p
+  where p.id=auth.uid();
+$;
+
 create or replace function public.admin_dashboard_summary()
 returns jsonb
 language plpgsql
@@ -164,12 +181,14 @@ end;
 $$;
 
 revoke all on function public.start_conversation(uuid) from public;
+revoke all on function public.get_my_profile() from public;
 revoke all on function public.list_my_conversations() from public;
 revoke all on function public.admin_dashboard_summary() from public;
 revoke all on function public.admin_recent_payments() from public;
 revoke all on function public.admin_open_reports() from public;
 revoke all on function public.admin_update_report(uuid,text) from public;
 grant execute on function public.start_conversation(uuid) to authenticated;
+grant execute on function public.get_my_profile() to authenticated;
 grant execute on function public.list_my_conversations() to authenticated;
 grant execute on function public.admin_dashboard_summary() to authenticated;
 grant execute on function public.admin_recent_payments() to authenticated;
@@ -199,11 +218,33 @@ using (
 
 -- Explicit grants are required in addition to RLS policies.
 grant usage on schema public to authenticated;
-grant select,insert,update on public.profiles to authenticated;
+revoke select,insert,update on public.profiles from authenticated;
+grant select (id,display_name,gender,region,bio,language,registration_complete,created_at,updated_at) on public.profiles to authenticated;
+grant update (display_name,phone,gender,region,bio,language) on public.profiles to authenticated;
 grant select,insert,delete,update on public.profile_photos to authenticated;
 grant select,insert on public.conversations to authenticated;
 grant select,insert,delete on public.conversation_members to authenticated;
 grant select,insert,update on public.messages to authenticated;
+
+-- A block stops further access to the existing conversation in both directions.
+drop policy if exists "messages_select_members" on public.messages;
+create policy "messages_select_members" on public.messages
+for select to authenticated using (
+  public.is_conversation_member(conversation_id,auth.uid())
+  and not exists (select 1 from public.user_blocks b join public.conversation_members cm on cm.conversation_id=messages.conversation_id and cm.user_id<>auth.uid()
+    where (b.blocker_id=auth.uid() and b.blocked_id=cm.user_id) or (b.blocker_id=cm.user_id and b.blocked_id=auth.uid()))
+);
+drop policy if exists "messages_insert_members" on public.messages;
+create policy "messages_insert_members" on public.messages
+for insert to authenticated with check (
+  sender_id=auth.uid() and public.is_conversation_member(conversation_id,auth.uid())
+  and not exists (select 1 from public.user_blocks b join public.conversation_members cm on cm.conversation_id=messages.conversation_id and cm.user_id<>auth.uid()
+    where (b.blocker_id=auth.uid() and b.blocked_id=cm.user_id) or (b.blocker_id=cm.user_id and b.blocked_id=auth.uid()))
+);
+drop policy if exists "messages_update_members" on public.messages;
+create policy "messages_update_members" on public.messages
+for update to authenticated using (public.is_conversation_member(conversation_id,auth.uid()))
+with check (public.is_conversation_member(conversation_id,auth.uid()));
 grant select,insert,delete on public.user_blocks to authenticated;
 grant select,insert on public.user_reports to authenticated;
 grant select on public.memberships to authenticated;
