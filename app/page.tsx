@@ -108,15 +108,15 @@ export default function Home() {
   }
 
   async function saveProfile() {
-    if (!supabase || !user || !profile) return;
+    if (!supabase || !user) return;
     setBusy(true); setMessage("");
     try {
       const { count: existingPhotoCount, error: photoCountError } = await supabase.from("profile_photos").select("id", { count: "exact", head: true }).eq("user_id", user.id);
       if (photoCountError) throw photoCountError;
       if (gender === "female" && ((existingPhotoCount || 0) > 3 || photos.length !== Math.max(0, 3 - (existingPhotoCount || 0)))) throw new Error(t.needPhotos + " You have " + (existingPhotoCount || 0) + " already; upload " + Math.max(0, 3 - (existingPhotoCount || 0)) + " more.");
       const { error: updateError } = await supabase.from("profiles").update({
-        display_name: name.trim() || profile.display_name,
-        phone: phone.trim() || profile.phone,
+        display_name: name.trim() || profile?.display_name || user.user_metadata?.display_name || "",
+        phone: phone.trim() || profile?.phone || user.user_metadata?.phone || null,
         gender, region, bio: bio.trim()
       }).eq("id", user.id);
       if (updateError) throw updateError;
@@ -134,9 +134,18 @@ export default function Home() {
           if (rowError) throw rowError;
         }
       }
-      const { data: ownProfile } = await supabase.rpc("get_my_profile");
+      const { data: ownProfile, error: refreshError } = await supabase.rpc("get_my_profile");
       const refreshed = (Array.isArray(ownProfile) ? ownProfile[0] : ownProfile) as Profile | null;
-      setProfile(refreshed); setExistingPhotos((existingPhotoCount || 0) + photos.length); setPhotos([]); setMessage(t.saved);
+      setProfile(refreshed || {
+        id: user.id,
+        display_name: name.trim() || profile?.display_name || user.user_metadata?.display_name || null,
+        phone: phone.trim() || profile?.phone || user.user_metadata?.phone || null,
+        gender, region, bio: bio.trim(), registration_complete: profile?.registration_complete || false
+      });
+      const { count: finalPhotoCount } = await supabase.from("profile_photos").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+      setExistingPhotos(finalPhotoCount ?? (existingPhotoCount || 0) + photos.length);
+      setPhotos([]);
+      setMessage(refreshError ? (t.saved + " Please refresh to reload your profile status.") : t.saved);
     } catch (e) { setMessage(e instanceof Error ? e.message : t.authError); }
     finally { setBusy(false); }
   }
