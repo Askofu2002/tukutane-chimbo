@@ -221,10 +221,17 @@ grant usage on schema public to authenticated;
 revoke select,insert,update on public.profiles from authenticated;
 grant select (id,display_name,gender,region,bio,language,registration_complete,created_at,updated_at) on public.profiles to authenticated;
 grant update (display_name,phone,gender,region,bio,language) on public.profiles to authenticated;
-grant select,insert,delete,update on public.profile_photos to authenticated;
-grant select,insert on public.conversations to authenticated;
-grant select,insert,delete on public.conversation_members to authenticated;
-grant select,insert,update on public.messages to authenticated;
+revoke update on public.profile_photos from authenticated;
+grant select,insert,delete on public.profile_photos to authenticated;
+drop policy if exists "conversations_create_authenticated" on public.conversations;
+revoke insert on public.conversations from authenticated;
+grant select on public.conversations to authenticated;
+drop policy if exists "conversation_members_insert_self" on public.conversation_members;
+revoke insert,delete on public.conversation_members from authenticated;
+grant select on public.conversation_members to authenticated;
+drop policy if exists "messages_update_members" on public.messages;
+revoke update on public.messages from authenticated;
+grant select,insert on public.messages to authenticated;
 
 -- A block stops further access to the existing conversation in both directions.
 drop policy if exists "messages_select_members" on public.messages;
@@ -241,10 +248,6 @@ for insert to authenticated with check (
   and not exists (select 1 from public.user_blocks b join public.conversation_members cm on cm.conversation_id=messages.conversation_id and cm.user_id<>auth.uid()
     where (b.blocker_id=auth.uid() and b.blocked_id=cm.user_id) or (b.blocker_id=cm.user_id and b.blocked_id=auth.uid()))
 );
-drop policy if exists "messages_update_members" on public.messages;
-create policy "messages_update_members" on public.messages
-for update to authenticated using (public.is_conversation_member(conversation_id,auth.uid()))
-with check (public.is_conversation_member(conversation_id,auth.uid()));
 grant select,insert,delete on public.user_blocks to authenticated;
 grant select,insert on public.user_reports to authenticated;
 grant select on public.memberships to authenticated;
