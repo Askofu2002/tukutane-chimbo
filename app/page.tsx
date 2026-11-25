@@ -58,10 +58,10 @@ export default function Home() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [configured, setConfigured] = useState(true);
   const supabase = useMemo(() => {
-    try { return getSupabase(); } catch { setConfigured(false); return null; }
+    try { return getSupabase(); } catch { return null; }
   }, []);
+  const configured = supabase !== null;
 
   useEffect(() => {
     if (!supabase) return;
