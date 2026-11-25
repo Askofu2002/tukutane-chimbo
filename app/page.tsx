@@ -75,8 +75,8 @@ export default function Home() {
     let alive = true;
     async function load() {
       const { data } = await supabase!.from("profiles").select("*").eq("id", user!.id).maybeSingle();
-      if (alive) setProfile(data as Profile | null);
-      const { data: people } = await supabase!.from("profiles").select("id,display_name,phone,gender,region,bio,registration_complete").eq("registration_complete", true).neq("id", user!.id).limit(40);
+      if (alive) { const current = data as Profile | null; setProfile(current); if (current) { setName(current.display_name || ""); setPhone(current.phone || ""); setGender(current.gender || "female"); setRegion(current.region || "Dar es Salaam"); setBio(current.bio || ""); } }
+      const { data: people } = await supabase!.from("profiles").select("id,display_name,gender,region,bio,registration_complete").eq("registration_complete", true).neq("id", user!.id).limit(40);
       if (alive && people) setMembers(people as Profile[]);
     }
     void load();
@@ -105,9 +105,11 @@ export default function Home() {
 
   async function saveProfile() {
     if (!supabase || !user || !profile) return;
-    if (profile.gender === "female" && photos.length !== 3) { setMessage(t.needPhotos); return; }
     setBusy(true); setMessage("");
     try {
+      const { count: existingPhotoCount, error: photoCountError } = await supabase.from("profile_photos").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+      if (photoCountError) throw photoCountError;
+      if (gender === "female" && ((photos.length !== 0 && photos.length !== 3) || (existingPhotoCount !== 3 && photos.length !== 3) || (existingPhotoCount === 3 && photos.length === 3))) throw new Error(t.needPhotos + " Existing photos: " + (existingPhotoCount || 0) + ".");
       const { error: updateError } = await supabase.from("profiles").update({
         display_name: name.trim() || profile.display_name,
         phone: phone.trim() || profile.phone,
@@ -115,7 +117,7 @@ export default function Home() {
       }).eq("id", user.id);
       if (updateError) throw updateError;
       if (photos.length) {
-        if (photos.length !== 3) throw new Error(t.needPhotos);
+        if (photos.length !== 3 || (existingPhotoCount || 0) > 0) throw new Error("Upload exactly 3 photos once. Existing photos cannot be replaced from this screen yet.");
         for (let i = 0; i < photos.length; i++) {
           const file = photos[i];
           if (!["image/jpeg","image/png","image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
@@ -144,7 +146,7 @@ export default function Home() {
       <a className="brand" href="#"><span className="brand-mark">T</span><span>Tukutane <b>Chimbo</b></span></a>
       <div className="top-actions">
         <button className="lang" onClick={() => setLang(lang === "sw" ? "en" : "sw")}>{lang === "sw" ? "EN" : "SW"}</button>
-        {user && <button className="button button-quiet" onClick={logout}>{t.logout}</button>}
+        {user && <><a className="button button-quiet" href="/messages">Messages</a><a className="button button-quiet" href="/membership">Membership</a>{user.email?.toLowerCase() === "askofutza41@gmail.com" && <a className="button button-quiet" href="/admin">Admin</a>}<button className="button button-quiet" onClick={logout}>{t.logout}</button></>}
       </div>
     </header>
     <section className="hero">
@@ -184,7 +186,7 @@ export default function Home() {
         <button className="button button-primary full" disabled={busy} onClick={saveProfile}>{busy ? t.loading : t.finish}</button>
       </section>
       <section className="panel community-panel"><div className="section-heading"><div><span className="eyebrow">{t.members}</span><h2>{t.members}</h2></div><span className="count">{members.length}</span></div>
-        {members.length === 0 ? <p className="muted">{t.empty}</p> : <div className="member-list">{members.map(member => <article className="member" key={member.id}><div className="avatar">{(member.display_name || "?").slice(0,1).toUpperCase()}</div><div><b>{member.display_name || "Member"}</b><span>{member.region || "Tanzania"} · {member.gender || ""}</span><p>{member.bio || ""}</p></div></article>)}</div>}
+        {members.length === 0 ? <p className="muted">{t.empty}</p> : <div className="member-list">{members.map(member => <article className="member" key={member.id}><div className="avatar">{(member.display_name || "?").slice(0,1).toUpperCase()}</div><div><b>{member.display_name || "Member"}</b><span>{member.region || "Tanzania"} · {member.gender || ""}</span><p>{member.bio || ""}</p><a className="button button-quiet" href={"/messages?with=" + member.id}>Message</a></div></article>)}</div>}
         <p className="safety-note">{t.note}</p>
       </section>
     </div>}
