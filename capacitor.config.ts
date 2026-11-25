@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "tz.tukutan echimbo.app".replace(" ", ""),
+  appId: "tz.tukutanechimbo.app",
   appName: "Tukutane Chimbo",
   webDir: "public",
   server: {
