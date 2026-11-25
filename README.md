@@ -45,12 +45,11 @@ Open http://localhost:3000.
 
 This is a committed application foundation, not a production-complete service. The following still need to be implemented and tested:
 
-- Secure conversation creation/invitations and full realtime messaging.
-- Block/report user workflows and admin moderation dashboard.
-- Server-side AzamPay sandbox checkout, verified callbacks, idempotency, and membership activation.
-- Membership renewals, revenue reporting, and admin payouts.
-- Phone OTP, age/consent checks, privacy controls, anti-abuse controls, and security review.
-- Hosting, domain configuration, Android packaging, signing, and APK release.
+- Apply the feature SQL migration in Supabase, then test two real accounts for conversation creation, realtime messaging, blocks and reports.
+- Complete AzamPay sandbox checkout, verified callbacks, idempotency and membership activation after merchant credentials and account-specific API configuration are supplied.
+- Enable withdrawals only after AzamPay disbursement onboarding and secure payout verification.
+- Phone OTP, age/consent checks, deeper privacy controls, anti-abuse controls and an independent security review remain outstanding.
+- Android debug APK generation is automated; Play Store release signing still needs a release keystore.
 
 The app does not simulate payment success. A membership must only activate after a trusted server verifies the transaction with AzamPay. Do not add merchant secrets to frontend code or GitHub.
 
