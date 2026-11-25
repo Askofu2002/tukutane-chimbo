@@ -35,19 +35,41 @@ export default function MessagesPage() {
       if(target){
         const {data,error}=await supabase.rpc("start_conversation",{target_user:target});
         if(error){setNotice(error.message);return;}
-        const {data:rows}=await supabase.rpc("list_my_conversations");
+        const {data:rows,error:listError}=await supabase.rpc("list_my_conversations");
+        if(listError){setNotice("Conversation created, but the inbox could not load. Apply the latest Supabase messaging migration and try again.");return;}
         const list=(rows||[]) as Conversation[];
-        if(alive){setItems(list);setActive(list.find(x=>x.conversation_id===data)||null);}
+        const conversationId=typeof data==="string"?data:"";
+        if(alive){
+          setItems(list);
+          const opened=list.find(x=>x.conversation_id===conversationId)||list[0]||null;
+          setActive(opened);
+          setNotice(opened?"":"Conversation created. Refresh the inbox if it does not appear yet.");
+        }
         router.replace("/messages");
       } else {
         const {data:rows,error}=await supabase.rpc("list_my_conversations");
-        if(error){setNotice("Messaging setup is incomplete. Apply the Tukutane feature SQL migration in Supabase.");return;}
+        if(error){setNotice("Messaging setup is incomplete. Apply both Tukutane Supabase migrations, then reload this page.");return;}
         const list=(rows||[]) as Conversation[];
         if(alive){setItems(list);if(list.length)setActive(list[0]);setNotice(list.length?"":"No conversations yet. Open a member profile and choose Message.");}
       }
     })();
     return()=>{alive=false;};
   },[supabase,router]);
+
+  useEffect(()=>{
+    if(!supabase||!userId)return;
+    let alive=true;
+    const channel=supabase.channel("inbox-"+userId)
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"conversation_members",filter:"user_id=eq."+userId},async()=>{
+        const {data,error}=await supabase.rpc("list_my_conversations");
+        if(error||!alive)return;
+        const latest=(data||[]) as Conversation[];
+        setItems(latest);
+        setActive(current=>current||latest[0]||null);
+        if(latest.length)setNotice("");
+      }).subscribe();
+    return()=>{alive=false;void supabase.removeChannel(channel);};
+  },[supabase,userId]);
 
   const activeConversationId=active?.conversation_id;
   useEffect(()=>{
