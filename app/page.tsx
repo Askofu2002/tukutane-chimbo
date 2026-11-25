@@ -113,7 +113,7 @@ export default function Home() {
     try {
       const { count: existingPhotoCount, error: photoCountError } = await supabase.from("profile_photos").select("id", { count: "exact", head: true }).eq("user_id", user.id);
       if (photoCountError) throw photoCountError;
-      if (gender === "female" && (existingPhotoCount > 3 || photos.length !== Math.max(0, 3 - (existingPhotoCount || 0)))) throw new Error(t.needPhotos + " You have " + (existingPhotoCount || 0) + " already; upload " + Math.max(0, 3 - (existingPhotoCount || 0)) + " more.");
+      if (gender === "female" && ((existingPhotoCount || 0) > 3 || photos.length !== Math.max(0, 3 - (existingPhotoCount || 0)))) throw new Error(t.needPhotos + " You have " + (existingPhotoCount || 0) + " already; upload " + Math.max(0, 3 - (existingPhotoCount || 0)) + " more.");
       const { error: updateError } = await supabase.from("profiles").update({
         display_name: name.trim() || profile.display_name,
         phone: phone.trim() || profile.phone,
