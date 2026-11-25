@@ -144,11 +144,11 @@ export default function Home() {
       if (photoCountError) throw photoCountError;
       if (gender === "female" && (existingPhotoCount || 0) > 3) throw new Error("Your account has more than 3 profile photos. Contact support to correct them.");
       if (gender === "female" && photos.length > 0 && photos.length !== Math.max(0, 3 - (existingPhotoCount || 0))) throw new Error("Upload exactly the remaining " + Math.max(0, 3 - (existingPhotoCount || 0)) + " photos.");
-      const { error: updateError } = await supabase.from("profiles").update({
-        display_name: name.trim() || profile?.display_name || user.user_metadata?.display_name || "",
-        phone: phone.trim() || profile?.phone || user.user_metadata?.phone || null,
-        gender, region, bio: bio.trim()
-      }).eq("id", user.id);
+      const { error: updateError } = await supabase.rpc("save_my_profile", {
+        p_display_name: name.trim() || profile?.display_name || user.user_metadata?.display_name || "",
+        p_phone: phone.trim() || profile?.phone || user.user_metadata?.phone || null,
+        p_gender: gender, p_region: region, p_bio: bio.trim(), p_language: lang
+      });
       if (updateError) throw updateError;
       if (photos.length) {
         for (let i = 0; i < photos.length; i++) {
