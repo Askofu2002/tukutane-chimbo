@@ -69,6 +69,11 @@ as $$
     select m.body,m.created_at from public.messages m
     where m.conversation_id=c.id order by m.created_at desc limit 1
   ) latest on true
+  where not exists (
+    select 1 from public.user_blocks b
+    where (b.blocker_id=auth.uid() and b.blocked_id=other_member.user_id)
+       or (b.blocker_id=other_member.user_id and b.blocked_id=auth.uid())
+  )
   order by coalesce(latest.created_at,c.created_at) desc;
 $$;
 
@@ -190,3 +195,16 @@ using (
 
 -- Keep profile phone numbers out of the discovery query in the client.
 -- Existing table RLS is unchanged; the app should only select phone for its own profile.
+
+
+-- Explicit grants are required in addition to RLS policies.
+grant usage on schema public to authenticated;
+grant select,insert,update on public.profiles to authenticated;
+grant select,insert,delete,update on public.profile_photos to authenticated;
+grant select,insert on public.conversations to authenticated;
+grant select,insert,delete on public.conversation_members to authenticated;
+grant select,insert,update on public.messages to authenticated;
+grant select,insert,delete on public.user_blocks to authenticated;
+grant select,insert on public.user_reports to authenticated;
+grant select on public.memberships to authenticated;
+grant select on public.payment_transactions to authenticated;
