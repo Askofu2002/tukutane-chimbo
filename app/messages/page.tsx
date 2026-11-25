@@ -82,6 +82,17 @@ export default function MessagesPage() {
     setBusy(false);
   }
 
+  async function shareCurrentLocation(){
+    if(!supabase||!active||!userId)return;
+    if(!navigator.geolocation){setNotice("Location sharing is not supported by this browser.");return;}
+    setBusy(true);
+    navigator.geolocation.getCurrentPosition(async position=>{
+      const url="https://www.google.com/maps?q="+position.coords.latitude+","+position.coords.longitude;
+      const {error}=await supabase.from("messages").insert({conversation_id:active.conversation_id,sender_id:userId,body:"📍 My meeting location: "+url});
+      if(error)setNotice(error.message);setBusy(false);
+    },error=>{setNotice(error.message||"Location permission was not granted.");setBusy(false);},{enableHighAccuracy:true,timeout:12000,maximumAge:30000});
+  }
+
   async function blockMember(){
     if(!supabase||!active||!window.confirm("Block this member? They will no longer be able to start or continue a conversation with you."))return;
     const {error}=await supabase.from("user_blocks").insert({blocker_id:userId,blocked_id:active.other_user_id});
@@ -105,7 +116,7 @@ export default function MessagesPage() {
         <section className="chat-window">
           {active?<><div className="chat-heading"><b>{active.other_display_name}</b><div className="chat-actions"><button className="button button-quiet" onClick={blockMember}>Block</button></div></div>
             <div className="message-list">{messages.map(m=><div key={m.id} className={"bubble "+(m.sender_id===userId?"mine":"theirs")}><p>{m.body}</p><small>{new Date(m.created_at).toLocaleString()}</small></div>)}<div ref={bottom}/></div>
-            <form className="chat-compose" onSubmit={sendMessage}><input value={body} onChange={e=>setBody(e.target.value)} placeholder="Write a message…" maxLength={5000}/><button className="button button-primary" disabled={busy||!body.trim()}>Send</button></form>
+            <form className="chat-compose" onSubmit={sendMessage}><input value={body} onChange={e=>setBody(e.target.value)} placeholder="Write a message…" maxLength={5000}/><button className="button button-primary" disabled={busy||!body.trim()}>Send</button><button type="button" className="button button-quiet" disabled={busy} onClick={shareCurrentLocation}>Share location</button></form>
             <form className="report-form" onSubmit={reportMember}><details><summary>Report this member</summary><select value={reportReason} onChange={e=>setReportReason(e.target.value)}><option>Inappropriate behaviour</option><option>Harassment</option><option>Fake profile</option><option>Scam or financial request</option><option>Other safety concern</option></select><textarea value={reportDetails} onChange={e=>setReportDetails(e.target.value)} placeholder="Additional details (optional)" rows={2}/><button className="button button-quiet">Submit report</button></details></form>
           </>:<p className="muted">Choose a conversation to view messages.</p>}
         </section>
