@@ -116,9 +116,11 @@ begin
 end;
 $$;
 
+alter table public.payment_transactions add column if not exists payment_channel text;
+
 create or replace function public.admin_recent_payments()
 returns table (
-  member_name text, phone text, amount_tzs integer, merchant_reference text,
+  member_name text, phone text, payment_channel text, amount_tzs integer, merchant_reference text,
   provider_reference text, status text, created_at timestamptz
 )
 language plpgsql
@@ -131,7 +133,7 @@ begin
     raise exception 'Administrator access required';
   end if;
   return query
-    select coalesce(p.display_name,'Member'),p.phone,t.amount_tzs,t.merchant_reference,
+    select coalesce(p.display_name,'Member'),p.phone,t.payment_channel,t.amount_tzs,t.merchant_reference,
            t.provider_reference,t.status,t.created_at
     from public.payment_transactions t
     join public.profiles p on p.id=t.user_id
