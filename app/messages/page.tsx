@@ -23,17 +23,6 @@ export default function MessagesPage() {
   const [busy,setBusy] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
 
-  async function refreshConversations() {
-    if (!supabase) return;
-    const {data,error}=await supabase.rpc("list_my_conversations");
-    if(error){setNotice("Messaging setup is incomplete. Apply the Tukutane feature SQL migration in Supabase.");return;}
-    const rows=(data||[]) as Conversation[];
-    setItems(rows);
-    if(active){const found=rows.find(x=>x.conversation_id===active.conversation_id);if(found)setActive(found);}
-    if(!active && rows.length) setActive(rows[0]);
-    setNotice(rows.length?"":"No conversations yet. Open a member profile and choose Message.");
-  }
-
   useEffect(() => {
     if(!supabase)return;
     let alive=true;
@@ -50,27 +39,33 @@ export default function MessagesPage() {
         const list=(rows||[]) as Conversation[];
         if(alive){setItems(list);setActive(list.find(x=>x.conversation_id===data)||null);}
         router.replace("/messages");
-      } else await refreshConversations();
+      } else {
+        const {data:rows,error}=await supabase.rpc("list_my_conversations");
+        if(error){setNotice("Messaging setup is incomplete. Apply the Tukutane feature SQL migration in Supabase.");return;}
+        const list=(rows||[]) as Conversation[];
+        if(alive){setItems(list);if(list.length)setActive(list[0]);setNotice(list.length?"":"No conversations yet. Open a member profile and choose Message.");}
+      }
     })();
     return()=>{alive=false;};
   },[supabase,router]);
 
+  const activeConversationId=active?.conversation_id;
   useEffect(()=>{
-    if(!supabase||!active)return;
+    if(!supabase||!activeConversationId)return;
     let alive=true;
     const load=async()=>{
-      const {data,error}=await supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,read_at").eq("conversation_id",active.conversation_id).order("created_at",{ascending:true}).limit(200);
+      const {data,error}=await supabase.from("messages").select("id,conversation_id,sender_id,body,created_at,read_at").eq("conversation_id",activeConversationId).order("created_at",{ascending:true}).limit(200);
       if(error){setNotice(error.message);return;}
       if(alive){setMessages((data||[]) as Message[]);setNotice("");}
     };
     void load();
-    const channel=supabase.channel("chat-"+active.conversation_id)
-      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"conversation_id=eq."+active.conversation_id},payload=>{
+    const channel=supabase.channel("chat-"+activeConversationId)
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:"conversation_id=eq."+activeConversationId},payload=>{
         const incoming=payload.new as Message;
         setMessages(old=>old.some(m=>m.id===incoming.id)?old:[...old,incoming]);
       }).subscribe();
     return()=>{alive=false;void supabase.removeChannel(channel);};
-  },[supabase,active?.conversation_id]);
+  },[supabase,activeConversationId]);
 
   useEffect(()=>{bottom.current?.scrollIntoView({behavior:"smooth"});},[messages]);
 
@@ -97,10 +92,10 @@ export default function MessagesPage() {
     if(!supabase||!active||!window.confirm("Block this member? They will no longer be able to start or continue a conversation with you."))return;
     const {error}=await supabase.from("user_blocks").insert({blocker_id:userId,blocked_id:active.other_user_id});
     if(error){setNotice(error.message);return;}
-    setActive(null);setMessages([]);await refreshConversations();setNotice("Member blocked.");
+    setActive(null);setMessages([]);const {data:rows}=await supabase.rpc("list_my_conversations");setItems((rows||[]) as Conversation[]);setNotice("Member blocked.");
   }
 
-  async function reportMember(e:React.FormEvent){
+  async function reportMember(e:FormEvent){
     e.preventDefault();if(!supabase||!active)return;
     const {error}=await supabase.from("user_reports").insert({reporter_id:userId,reported_user_id:active.other_user_id,reason:reportReason,details:reportDetails.trim()||null});
     if(error)setNotice(error.message);else{setReportDetails("");setNotice("Report submitted to the moderation team.");}
