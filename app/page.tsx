@@ -76,8 +76,16 @@ export default function Home() {
     return () => listener.subscription.unsubscribe();
   }, [supabase]);
 
+  const isAdmin = user?.email?.toLowerCase() === "askofutza41@gmail.com";
+
   useEffect(() => {
-    if (!supabase || !user) { setProfile(null); setMembers([]); return; }
+    if (isAdmin) {
+      window.location.replace("/admin");
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!supabase || !user || isAdmin) { setProfile(null); setMembers([]); return; }
     let alive = true;
     async function load() {
       const { data } = await supabase!.rpc("get_my_profile");
@@ -189,7 +197,7 @@ export default function Home() {
       <a className="brand" href="#"><span className="brand-mark">T</span><span>Tukutane <b>Chimbo</b></span></a>
       <div className="top-actions">
         <button className="lang" onClick={() => setLang(lang === "sw" ? "en" : "sw")}>{lang === "sw" ? "EN" : "SW"}</button>
-        {user && <><a className="button button-quiet" href="/messages">Messages</a><a className="button button-quiet" href="/membership">Membership</a>{user.email?.toLowerCase() === "askofutza41@gmail.com" && <a className="button button-quiet" href="/admin">Admin</a>}<button className="button button-quiet" onClick={logout}>{t.logout}</button></>}
+        {user && <>{!isAdmin && <><a className="button button-quiet" href="/messages">Messages</a><a className="button button-quiet" href="/membership">Membership</a></>}<button className="button button-quiet" onClick={logout}>{t.logout}</button></>}
       </div>
     </header>
     <section className="hero">
@@ -215,7 +223,7 @@ export default function Home() {
       <button className="button button-primary full" disabled={busy || !configured || !email || password.length < 8 || (mode === "signup" && !name.trim())} onClick={authenticate}>{busy ? t.loading : mode === "signup" ? t.signup : t.login}</button>
       {mode === "login" && <button type="button" className="button button-quiet full" disabled={busy || !email.trim()} onClick={requestPasswordReset}>Forgot password? Send reset email</button>}
       <p className="muted">{t.pending}</p>
-    </section> : <div className="content-grid">
+    </section> : isAdmin ? <section className="panel auth-panel"><h2>Administrator account</h2><p>Opening the restricted administration dashboard…</p><a className="button button-primary full" href="/admin">Open Admin Dashboard</a></section> : <div className="content-grid">
       <section className="panel profile-panel">
         <div className="section-heading"><div><span className="eyebrow">{t.account}</span><h2>{profile?.display_name || user.email}</h2></div><span className={profile?.registration_complete ? "status good" : "status"}>{profile?.registration_complete ? "Complete" : "Incomplete"}</span></div>
         <p className="muted">{t.signed}: {user.email}</p>
