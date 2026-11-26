@@ -222,7 +222,7 @@ export default function Home() {
         <div className="form-grid">
           <label>{t.name}<input value={name || profile?.display_name || ""} onChange={e => setName(e.target.value)} /></label>
           <label>{t.phone}<input value={phone || profile?.phone || ""} onChange={e => setPhone(e.target.value)} /></label>
-          <label>{t.gender}<select value={gender} onChange={e => setGender(e.target.value)}><option value="female">{t.female}</option><option value="male">{t.male}</option><option value="other">{t.other}</option></select></label>
+          <label>{t.gender}<select value={gender} onChange={e => setGender(e.target.value)}><option value="female">{t.female}</option><option value="male">{t.male}</option></select></label>
           <label>{t.region}<select value={region} onChange={e => setRegion(e.target.value)}>{regions.map(r => <option key={r}>{r}</option>)}</select></label>
           <label className="wide">{t.bio}<textarea value={bio || profile?.bio || ""} onChange={e => setBio(e.target.value)} rows={3} maxLength={500} /></label>
           {gender === "female" && <label className="wide">{t.photos}<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e => setPhotos(Array.from(e.target.files || []).slice(0,Math.max(0,3-existingPhotos)))} /><small>{existingPhotos}/3 uploaded · {photos.length} selected · Max 5 MB each</small></label>}
