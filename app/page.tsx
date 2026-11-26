@@ -14,7 +14,7 @@ const copy = {
     tagline: "Meet. Connect. Make it meaningful.", welcome: "Find your person, your way.",
     login: "Log in", signup: "Create account", email: "Email address", password: "Password",
     name: "Display name", phone: "Phone number", gender: "Gender", female: "Female",
-    male: "Male", other: "Other", region: "Region", bio: "About you",
+    male: "Male", region: "Region", bio: "About you",
     photos: "Upload exactly 3 profile photos", finish: "Save profile", logout: "Log out",
     members: "Community", account: "Your profile", signed: "Signed in as",
     needPhotos: "Female profiles need exactly 3 photos to complete registration.",
@@ -28,7 +28,7 @@ const copy = {
     tagline: "Kutana. Ungana. Jenga mahusiano yenye maana.", welcome: "Tafuta mtu wako kwa namna yako.",
     login: "Ingia", signup: "Fungua akaunti", email: "Barua pepe", password: "Nenosiri",
     name: "Jina la kuonekana", phone: "Namba ya simu", gender: "Jinsia", female: "Mwanamke",
-    male: "Mwanaume", other: "Nyingine", region: "Mkoa", bio: "Kuhusu wewe",
+    male: "Mwanaume", region: "Mkoa", bio: "Kuhusu wewe",
     photos: "Pakia picha 3 za wasifu tu", finish: "Hifadhi wasifu", logout: "Toka",
     members: "Jumuiya", account: "Wasifu wako", signed: "Umeingia kama",
     needPhotos: "Wasifu wa mwanamke unahitaji picha 3 kamili ili kukamilisha usajili.",
@@ -175,7 +175,7 @@ export default function Home() {
       setExistingPhotos(finalPhotoCount ?? (existingPhotoCount || 0) + photos.length);
       setPhotos([]);
       setMessage(refreshError ? (t.saved + " Please refresh to reload your profile status.") : t.saved);
-    } catch (e) { setMessage(e instanceof Error ? e.message : t.authError); }
+    } catch (e) { const detail = e && typeof e === "object" && "message" in e ? String((e as {message: unknown}).message) : e instanceof Error ? e.message : t.authError; setMessage(detail || t.authError); }
     finally { setBusy(false); }
   }
 
@@ -205,7 +205,7 @@ export default function Home() {
         {mode === "signup" && <>
           <label>{t.name}<input value={name} onChange={e => setName(e.target.value)} required /></label>
           <label>{t.phone}<input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+255…" /></label>
-          <label>{t.gender}<select value={gender} onChange={e => setGender(e.target.value)}><option value="female">{t.female}</option><option value="male">{t.male}</option><option value="other">{t.other}</option></select></label>
+          <label>{t.gender}<select value={gender} onChange={e => setGender(e.target.value)}><option value="female">{t.female}</option><option value="male">{t.male}</option></select></label>
           <label>{t.region}<select value={region} onChange={e => setRegion(e.target.value)}>{regions.map(r => <option key={r}>{r}</option>)}</select></label>
           <label className="wide">{t.bio}<textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} maxLength={500} /></label>
         </>}
