@@ -98,7 +98,7 @@ export default function Home() {
     }
     void load();
     return () => { alive = false; };
-  }, [supabase, user]);
+  }, [supabase, user, isAdmin]);
 
   async function authenticate() {
     if (!supabase) return;
